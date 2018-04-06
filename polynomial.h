@@ -1,15 +1,26 @@
 #pragma once
-
 #include "monomial.h"
 
 class polynomial
 {
 private:
     std::vector<monomial> members;
+
+    enum states {inital, main_state, whole_part, fraction, letter, exponent};
 public:
     polynomial() {}
-    polynomial(std::string);
+    polynomial(std::istream&);
     polynomial(std::vector<monomial> m) : members{m} {}
+    polynomial(int i)
+    {
+        members.push_back(monomial{i});
+    }
+    polynomial(std::string str)
+    {
+        std::stringstream ss;
+        ss << str;
+        *this = polynomial{ss};
+    }
 
     polynomial operator+(polynomial);
     polynomial operator-(polynomial);
@@ -19,24 +30,248 @@ public:
     friend std::ostream& operator<<(std::ostream&, polynomial);
 };
 
-polynomial::polynomial(std::string str)
+polynomial::polynomial(std::istream& is)
 {
-    char ch;
-    std::string temp;
+    double n = 0;
+    monomial m;
+    m.n = 0;
+    bool get = false;
+    char ch = '0', last_ch;
+    double length = 1;
+    states state = inital;
 
-    for (int i = 0; i < str.length(); i++)
+    while (ch != '\n')
     {
-        ch = str[i];
-        if (ch == '+' || ch == '-')
+        last_ch = ch;
+        is.get(ch);
+        //std::cout << ch << '\t' << n << '\t' << m << '\t' << *this << '\t' << state << std::endl;
+
+        if (ch == ' ')
+            continue;
+
+        switch (state)
         {
-            std::cout << temp << ' ' << ch << std::endl; //+++++
-            members.push_back(monomial{temp});
-            temp.clear();
+            case inital:
+                switch (ch)
+                {
+                case '+':
+                    state = main_state;
+                    break;
+                case '-':
+                    n = -1;
+                    state = main_state;
+                    break;
+                default:
+                    if (std::isdigit(ch))
+                    {
+                        is.unget();
+                        state = whole_part;
+                    }
+                    else if (std::isalpha(ch))
+                    {
+                        is.unget();
+                        state = letter;
+                    }
+
+                    break;
+                }
+                break;
+
+            case main_state:
+                switch (ch)
+                {
+                case '+':
+                    break;
+                case '-':
+                    n *= -1;
+                    break;
+                case '*':
+                    state = inital;
+                    break;
+                case '\n':
+                    members.push_back(m);
+                    break;
+                default:
+                    if (std::isdigit(ch))
+                    {
+                        is.unget();
+                        state = whole_part;
+                    }
+                    else if (std::isalpha(ch))
+                    {
+                        is.unget();
+                        state = letter;
+                    }
+
+                    break;
+                }
+                break;
+
+            case whole_part:
+                switch (ch)
+                {
+                case '+': case '-':
+                    is.unget();
+                    m.n *= n;
+                    n = 0;
+                    members.push_back(m);
+                    m = monomial{};
+                    get = false;
+                    state = inital;
+                    break;
+                case '*':
+                    m.n *= n;
+                    n = 0;
+                    state = inital;
+                    break;
+                case '.':
+                    state = fraction;
+                    break;
+                case '\n':
+                    //std::cout << "end!\n";
+                    m.n *= n;
+                    is.unget();
+                    state = main_state;
+                    break;
+                default:
+                    if (std::isdigit(ch))
+                    {
+                        if (!get)
+                            m.n = 1;
+                        get = true;
+
+                        if (last_ch == '-')
+                            n = -(ch - '0');
+                        else if (n < 0)
+                            n = n * 10 - (ch - '0');
+                        else
+                            n = n * 10 + (ch - '0');
+                    }
+                    else if (std::isalpha(ch))
+                    {
+                        m.n *= n;
+                        n = 0;
+                        is.unget();
+                        state = letter;
+                    }
+
+                    break;
+                }
+                break;
+
+            case fraction:
+                switch (ch)
+                {
+                case '+': case '-':
+                    is.unget();
+                    m.n *= n;
+                    n = 0;
+                    length = 1;
+                    members.push_back(m);
+                    m = monomial{};
+                    get = false;
+                    state = inital;
+                    break;
+                case '*':
+                    m.n *= n;
+                    n = 0;
+                    length = 1;
+                    state = inital;
+                    break;
+                case '\n':
+                    m.n *= n;
+                    is.unget();
+                    state = main_state;
+                    break;
+                default:
+                    if (std::isalpha(ch))
+                    {
+                        m.n *= n;
+                        n = 0;
+                        length = 1;
+                        is.unget();
+                        state = letter;
+                    }
+                    else if (std::isdigit(ch))
+                    {
+                        length *= 10;
+                        if (n < 0)
+                            n -= (ch - '0') / length;
+                        else
+                            n += (ch - '0') / length;
+                    }
+                    break;
+                }
+                break;
+
+            case letter:
+                switch (ch)
+                {
+                case '+': case '-':
+                    is.unget();
+                    members.push_back(m);
+                    n = 0;
+                    m = monomial{};
+                    get = false;
+                    state = inital;
+                    break;
+                case '*':
+                    state = inital;
+                    break;
+               /* case '^':
+                    state = exponent;
+                    break;*/
+                default:
+                    if (ch == '^')
+                    {
+                        state = exponent;
+                    }
+                    else if (std::isdigit(ch))
+                    {
+                        is.unget();
+                        state = whole_part;
+                    }
+                    else if (std::isalpha(ch))
+                    {
+                        if (!get)
+                            m.n = 1;
+                        get = true;
+                        m.vars.push_back(var<monomial>{ch});
+                    }
+
+                    break;
+                }
+                break;
+
+            case exponent:
+                std::string str;
+                if (ch == '(')
+                    while (ch != ')')
+                    {
+                        str += ch;
+                        is.get(ch);
+                    }
+                else
+                    while (ch != '*' && ch != '-' && ch != '+' && ch != '\n')
+                    {
+                        str += ch;
+                        is.get(ch);
+                    }
+
+                str += '\n';
+                std::stringstream ss;
+                ss << str;
+                m.vars[m.vars.size() - 1].pow = monomial{ss};
+
+                if (ch == '*' || ch == '\n')
+                    state = main_state;
+                else if (ch == '-' || ch == '+')
+                    state = inital;
+                is.unget();
+
+                break;
         }
-        temp += ch;
     }
-    members.push_back(monomial{temp});
-    std::cout << temp << std::endl; //+++++
 }
 
 std::istream& operator>>(std::istream& is, polynomial p)

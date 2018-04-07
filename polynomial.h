@@ -7,7 +7,18 @@ class polynomial
 private:
     std::vector<monomial> members;
 
-    enum states {inital, main_state, whole_part, fraction, letter, exponent};
+    enum states {I, W, D, F, V, EXP, ED, EF, ERR};
+    /*
+        I - inital
+        W - waiting for smt after +/-
+        D - digit
+        F - fraction
+        V - variable
+        EXP - exponent
+        ED - exponent : digit
+        EF - exponent : fraction
+        ERR - error
+    */
 public:
     polynomial() {}
     polynomial(std::istream&);
@@ -33,244 +44,313 @@ public:
 
 polynomial::polynomial(std::istream& is)
 {
-    double n = 0;
+    states state = I;
+    int M = 1, E = 1, S = 1;
+
     monomial m;
-    m.n = 0;
-    bool get = false;
-    char ch = '0', last_ch;
-    double length = 1;
-    states state = inital;
+    m.n = 1;
+
+    std::string str;
+    char ch = '0';
 
     while (ch != '\n')
     {
-        last_ch = ch;
         is.get(ch);
-        //std::cout << ch << '\t' << n << '\t' << m << '\t' << *this << '\t' << state << std::endl;
+        str += ch;
 
         if (ch == ' ')
             continue;
 
         switch (state)
         {
-            case inital:
-                switch (ch)
-                {
-                case '+':
-                    state = main_state;
-                    break;
-                case '-':
-                    n = -1;
-                    state = main_state;
-                    break;
-                default:
-                    if (std::isdigit(ch))
-                    {
-                        is.unget();
-                        state = whole_part;
-                    }
-                    else if (std::isalpha(ch))
-                    {
-                        is.unget();
-                        state = letter;
-                    }
-
-                    break;
-                }
+        case I:
+            switch (ch)
+            {
+            case '+':
+                state = W;
                 break;
-
-            case main_state:
-                switch (ch)
-                {
-                case '+':
-                    break;
-                case '-':
-                    n *= -1;
-                    break;
-                case '*':
-                    state = inital;
-                    break;
-                case '\n':
-                    members.push_back(m);
-                    break;
-                default:
-                    if (std::isdigit(ch))
-                    {
-                        is.unget();
-                        state = whole_part;
-                    }
-                    else if (std::isalpha(ch))
-                    {
-                        is.unget();
-                        state = letter;
-                    }
-
-                    break;
-                }
+            case '-':
+                S = -1;
+                state = W;
                 break;
-
-            case whole_part:
-                switch (ch)
-                {
-                case '+': case '-':
-                    is.unget();
-                    m.n *= n;
-                    n = 0;
-                    members.push_back(m);
-                    m = monomial{};
-                    get = false;
-                    state = inital;
-                    break;
-                case '*':
-                    m.n *= n;
-                    n = 0;
-                    state = inital;
-                    break;
-                case '.':
-                    state = fraction;
-                    break;
-                case '\n':
-                    //std::cout << "end!\n";
-                    m.n *= n;
-                    is.unget();
-                    state = main_state;
-                    break;
-                default:
-                    if (std::isdigit(ch))
-                    {
-                        if (!get)
-                            m.n = 1;
-                        get = true;
-
-                        if (last_ch == '-')
-                            n = -(ch - '0');
-                        else if (n < 0)
-                            n = n * 10 - (ch - '0');
-                        else
-                            n = n * 10 + (ch - '0');
-                    }
-                    else if (std::isalpha(ch))
-                    {
-                        m.n *= n;
-                        n = 0;
-                        is.unget();
-                        state = letter;
-                    }
-
-                    break;
-                }
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = D;
                 break;
-
-            case fraction:
-                switch (ch)
-                {
-                case '+': case '-':
-                    is.unget();
-                    m.n *= n;
-                    n = 0;
-                    length = 1;
-                    members.push_back(m);
-                    m = monomial{};
-                    get = false;
-                    state = inital;
-                    break;
-                case '*':
-                    m.n *= n;
-                    n = 0;
-                    length = 1;
-                    state = inital;
-                    break;
-                case '\n':
-                    m.n *= n;
-                    is.unget();
-                    state = main_state;
-                    break;
-                default:
-                    if (std::isalpha(ch))
-                    {
-                        m.n *= n;
-                        n = 0;
-                        length = 1;
-                        is.unget();
-                        state = letter;
-                    }
-                    else if (std::isdigit(ch))
-                    {
-                        length *= 10;
-                        if (n < 0)
-                            n -= (ch - '0') / length;
-                        else
-                            n += (ch - '0') / length;
-                    }
-                    break;
-                }
+            case LATIN:
+                m.vars.push_back(var<double> {ch});
+                state = V;
                 break;
+            default:
+                state = ERR;
+            }
+            break;
 
-            case letter:
-                switch (ch)
-                {
-                case '+': case '-':
-                    is.unget();
-                    members.push_back(m);
-                    n = 0;
-                    m = monomial{};
-                    get = false;
-                    state = inital;
-                    break;
-                case '*':
-                    state = inital;
-                    break;
-               /* case '^':
-                    state = exponent;
-                    break;*/
-                default:
-                    if (ch == '^')
-                    {
-                        state = exponent;
-                    }
-                    else if (std::isdigit(ch))
-                    {
-                        is.unget();
-                        state = whole_part;
-                    }
-                    else if (std::isalpha(ch))
-                    {
-                        if (!get)
-                            m.n = 1;
-                        get = true;
-                        m.vars.push_back(var<monomial>{ch});
-                    }
-
-                    break;
-                }
+        case W:
+            switch (ch)
+            {
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = D;
                 break;
-
-            case exponent:
-                std::string str;
-                if (ch == '(')
-                    while (ch != ')')
-                    {
-                        str += ch;
-                        is.get(ch);
-                    }
-                else
-                    while (ch != '*' && ch != '-' && ch != '+' && ch != '\n')
-                    {
-                        str += ch;
-                        is.get(ch);
-                    }
-
-                str += '\n';
-                std::stringstream ss;
-                ss << str;
-                m.vars[m.vars.size() - 1].pow = monomial{ss};
-
-                if (ch == '*' || ch == '\n')
-                    state = main_state;
-                else if (ch == '-' || ch == '+')
-                    state = inital;
-                is.unget();
-
+            case LATIN:
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+                m.vars.push_back(var<double> {ch});
+                state = V;
                 break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case D:
+            switch (ch)
+            {
+            case '*':
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+                state = I;
+                break;
+            case '+':
+                m.n *= M * S / (double)E;
+                members.push_back(m);
+                m = monomial{};
+                m.n = 1;
+                M = E = S = 1;
+                state = W;
+                break;
+            case '-':
+                m.n *= M * S / (double)E;
+                members.push_back(m);
+                m = monomial{};
+                m.n = 1;
+                M = E = 1;
+                S = -1;
+                state = W;
+                break;
+            case DECIMAL_DIGITS:
+                M = M * 10 + (ch - '0');
+                break;
+            case '.':
+                state = F;
+                break;
+            case LATIN:
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+                m.vars.push_back(var<double> {ch});
+                state = V;
+                break;
+            case '\n':
+                m.n *= M * S / (double)E;
+                members.push_back(m);
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case F:
+            switch (ch)
+            {
+            case '*':
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+                state = I;
+                break;
+            case '+':
+                m.n *= M * S / (double)E;
+                members.push_back(m);
+                m = monomial{};
+                m.n = 1;
+                M = E = S = 1;
+                state = W;
+                break;
+            case '-':
+                m.n *= M * S / (double)E;
+                members.push_back(m);
+                m = monomial{};
+                m.n = 1;
+                M = E = 1;
+                S = -1;
+                state = W;
+                break;
+            case DECIMAL_DIGITS:
+                M = M * 10 + (ch - '0');
+                E *= 10;
+                break;
+            case LATIN:
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+                m.vars.push_back(var<double> {ch});
+                state = V;
+                break;
+            case '\n':
+                m.n *= M * S / (double)E;
+                members.push_back(m);
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case V:
+            switch (ch)
+            {
+            case '*':
+                state = I;
+                break;
+            case '+':
+                members.push_back(m);
+                m = monomial{};
+                m.n = 1;
+                S = 1;
+                state = W;
+                break;
+            case '-':
+                members.push_back(m);
+                m = monomial{};
+                m.n = 1;
+                S = -1;
+                state = W;
+                break;
+            case LATIN:
+                m.vars.push_back(var<double> {ch});
+                break;
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = D;
+                break;
+            case '^':
+                state = EXP;
+                break;
+            case '\n':
+                members.push_back(m);
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case EXP:
+            switch (ch)
+            {
+            case '+':
+                S = 1;
+                break;
+            case '-':
+                S = -1;
+                break;
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = ED;
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case ED:
+            switch (ch)
+            {
+            case '*':
+                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                M = E = S = 1;
+                state = I;
+                break;
+            case '+':
+                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                members.push_back(m);
+                m = monomial{};
+                m.n = 1;
+                M = E = S = 1;
+                state = W;
+                break;
+            case '-':
+                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                members.push_back(m);
+                m = monomial{};
+                m.n = 1;
+                M = E = 1;
+                S = -1;
+                state = W;
+                break;
+            case DECIMAL_DIGITS:
+                M = 10 * M + (ch - '0');
+                break;
+            case '.':
+                state = EF;
+                break;
+            case LATIN:
+                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                m.vars.push_back(var<double> {ch});
+                M = E = S = 1;
+                state = V;
+                break;
+            case '\n':
+                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                members.push_back(m);
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case EF:
+            switch (ch)
+            {
+            case '*':
+                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                M = E = S = 1;
+                state = I;
+                break;
+            case '+':
+                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                members.push_back(m);
+                m = monomial{};
+                m.n = 1;
+                M = E = S = 1;
+                state = W;
+                break;
+            case '-':
+                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                members.push_back(m);
+                m = monomial{};
+                m.n = 1;
+                M = E = 1;
+                S = -1;
+                state = W;
+                break;
+            case DECIMAL_DIGITS:
+                M = M * 10 + (ch -'0');
+                E *= 10;
+                break;
+            case LATIN:
+                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                m.vars.push_back(var<double> {ch});
+                M = E = S = 1;
+                state = V;
+                break;
+            case '\n':
+                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                members.push_back(m);
+                break;
+            }
+            break;
+
+        case ERR:
+            int index = str.size() - 2;
+            do {
+                is.get(ch);
+                str += ch;
+            } while(ch != '\n');
+
+            for (int i = 0; i < index; i++)
+                str += ' ';
+            str += '^';
+
+            throw(std::string{"error: bad symbol:\n"} + str);
+            break;
         }
     }
 }
@@ -306,7 +386,10 @@ std::ostream& operator<<(std::ostream& os, polynomial p)
         else if (m.n < 0)
         {
             m.n = abs(m.n);
-            os << " - " << m;
+            if (!first)
+                os << " - " << m;
+            else
+                os << '-' << m;
         }
 
         if (first)

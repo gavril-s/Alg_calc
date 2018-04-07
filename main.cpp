@@ -8,8 +8,15 @@ int main()
 {
     while (true)
     {
-        polynomial p{cin};
-        cout << p << endl;
+        try
+        {
+            polynomial p{cin};
+            cout << p << endl;
+        }
+        catch (std::string str)
+        {
+            std::cout << str << endl;
+        }
     }
 
     return 0;

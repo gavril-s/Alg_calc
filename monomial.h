@@ -34,22 +34,21 @@ class monomial
 private:
     enum states {inital, main_state, whole_part, fraction, letter, exponent};
 
-    static bool comp(var<monomial> v1, var<monomial> v2)
+    static bool comp(var<double> v1, var<double> v2)
     { return v1.name < v2.name; }
 public:
-    std::vector<var<monomial>> vars;
+    std::vector<var<double>> vars;
     double n; //numerical value
 
     monomial() : n{0} {}
-    monomial(std::istream&);
     monomial(double N) : n{N} {}
     monomial(int N) : n{(double)N} {}
-    monomial(std::vector<var<monomial>> v) : n{1}
+    monomial(std::vector<var<double>> v) : n{1}
     {
         std::sort(v.begin(), v.end(), comp);
         vars = v;
     }
-    monomial(double N, std::vector<var<monomial>> v) : n{N}
+    monomial(double N, std::vector<var<double>> v) : n{N}
     {
         std::sort(v.begin(), v.end(), comp);
         vars = v;
@@ -94,189 +93,27 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, monomial m)
     {
-        os << m.n;
-        for (var<monomial> i : m.vars)
-            if (i.pow != monomial{1})
-                os << '*' << i.name << '^' << i.pow;
+        if (m.n != 1 || !m.vars.size())
+        {
+            os << m.n;
+            if (m.vars.size())
+                os << " * ";
+        }
+
+        for (int i = 0; i < m.vars.size(); i++)
+        {
+            if (m.vars[i].pow != 1.0)
+                os << m.vars[i].name << '^' << m.vars[i].pow;
             else
-                os << '*' << i.name;
+                os << m.vars[i].name;
+
+            if (i + 1 < m.vars.size())
+                os << " * ";
+        }
 
         return os;
     }
 };
-
-monomial::monomial(std::istream& is)
-{
-    /*states state = inital;
-    char ch = '0';
-    double length = 1;
-    int i = 0;
-    std::vector<int> v;
-
-    while (int i = 0; ch != '\n'; v.push_back(1), i++)
-    {
-        is.get(ch);
-
-        switch (state)
-        {
-        case inital:
-            switch (ch)
-            {
-            case '-':
-                v[i] *= -1;
-                state = main_state;
-                break;
-            case '+'
-                state = main_state;
-                break;
-            default:
-                if (std::isalpha(ch))
-                {
-                    vars.push_back(var(ch));
-                    state = letter;
-                }
-                else if (std::isdigit(ch))
-                {
-                    if (v[i] < 0)
-                        v[i] = v[i]*10 - (ch - '0');
-                    else
-                        v[i] = v[i]*10 + (ch - '0');
-                    state = whole_part;
-                }
-                break;
-            }
-            break;
-
-        case main_state:
-            switch (ch)
-            {
-            case '*':
-                state = inital;
-                break;
-            default:
-                if (std::isalpha(ch))
-                {
-                    vars.push_back(var(ch));
-                    state = letter;
-                }
-                else if (std::isdigit(ch))
-                {
-                    if (v[i] < 0)
-                        v[i] = v[i]*10 - (ch - '0');
-                    else
-                        v[i] = v[i]*10 + (ch - '0');
-                    state = whole_part;
-                }
-                break;
-            }
-            break;
-
-        case whole_part:
-            switch (ch)
-            {
-            case '*':
-                state = inital;
-                break;
-            case '.'
-                state = fraction;
-                break;
-            default:
-                if (std::isdigit(ch))
-                {
-                    if (v[i] < 0)
-                        v[i] = v[i]*10 - (ch - '0');
-                    else
-                        v[i] = v[i]*10 + (ch - '0');
-                    state = whole_part;
-                }
-                break;
-            }
-            break;
-
-        case fraction:
-            switch (ch)
-            {
-            case '*':
-                state = inital;
-                break;
-            default:
-                if (std::isalpha(ch))
-                {
-                    vars.push_back(var(ch));
-                    state = letter;
-                }
-                else if (std::isdigit(ch))
-                {
-                    length *= 10;
-                    if (v[i] < 0)
-                        v[i] -= (ch - '0') / length;
-                    else
-                        v[i] += (ch - '0') / length;
-                }
-                break;
-            }
-            break;
-
-        case letter
-            switch (ch)
-            {
-            case '*':
-                state = inital;
-                break;
-            case '^':
-                state = exponent;
-                break;
-            default:
-                if (std::isalpha(ch))
-                    vars.push_back(var{ch});
-                else if (std::isdigit(ch))
-                {
-                    if (v[i] < 0)
-                        v[i] = v[i]*10 - (ch - '0');
-                    else
-                        v[i] = v[i]*10 + (ch - '0');
-                    state = whole_part;
-                }
-                break;
-            }
-            break;
-
-        case exponent:
-            string str;
-            is.get(ch);
-            if (ch == '(')
-            {
-                is.get(ch);
-                while (ch != ')')
-                {
-                    str += ch;
-                    is.get(ch);
-                }
-            }
-            else
-            {
-                is.get(ch);
-                while (ch != '*')
-                {
-                    str += ch;
-                    is.get(ch);
-                }
-            }
-            str += '\n';
-            stringstream ss;
-            ss << str;
-            vars[vars.size() - 1].pow = polynomial{ss};
-
-            state = inital;
-
-            break;
-        }
-    }
-
-    n = 1;
-    for (double d : v)
-        n *= d;*/
-}
 
 monomial monomial::operator+(monomial m)
 {
@@ -314,7 +151,7 @@ monomial monomial::operator*(monomial m)
     res.n = n * m.n;
     res.vars = vars;
 
-    for (var<monomial> i : m.vars)
+    for (auto i : m.vars)
         res.vars.push_back(i);
 
     std::sort(res.vars.begin(), res.vars.end(), comp);

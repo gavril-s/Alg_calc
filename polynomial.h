@@ -1,4 +1,5 @@
 #pragma once
+#include "fsm.h"
 #include "monomial.h"
 
 class polynomial

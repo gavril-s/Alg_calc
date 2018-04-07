@@ -7,7 +7,7 @@ class polynomial
 private:
     std::vector<monomial> members;
 
-    enum states {I, W, D, F, V, EXP, ED, EF, ERR};
+    enum states {I, W, D, F, V, EXP, ED, EF, EV, ERR};
     /*
         I - inital
         W - waiting for smt after +/-
@@ -78,7 +78,7 @@ polynomial::polynomial(std::istream& is)
                 state = D;
                 break;
             case LATIN:
-                m.vars.push_back(var<double> {ch});
+                m.vars.push_back(var<monomial> {ch});
                 state = V;
                 break;
             default:
@@ -96,7 +96,7 @@ polynomial::polynomial(std::istream& is)
             case LATIN:
                 m.n *= M * S / (double)E;
                 M = E = S = 1;
-                m.vars.push_back(var<double> {ch});
+                m.vars.push_back(var<monomial> {ch});
                 state = V;
                 break;
             default:
@@ -138,7 +138,7 @@ polynomial::polynomial(std::istream& is)
             case LATIN:
                 m.n *= M * S / (double)E;
                 M = E = S = 1;
-                m.vars.push_back(var<double> {ch});
+                m.vars.push_back(var<monomial> {ch});
                 state = V;
                 break;
             case '\n':
@@ -182,7 +182,7 @@ polynomial::polynomial(std::istream& is)
             case LATIN:
                 m.n *= M * S / (double)E;
                 M = E = S = 1;
-                m.vars.push_back(var<double> {ch});
+                m.vars.push_back(var<monomial> {ch});
                 state = V;
                 break;
             case '\n':
@@ -215,7 +215,7 @@ polynomial::polynomial(std::istream& is)
                 state = W;
                 break;
             case LATIN:
-                m.vars.push_back(var<double> {ch});
+                m.vars.push_back(var<monomial> {ch});
                 break;
             case DECIMAL_DIGITS:
                 M = ch - '0';
@@ -245,6 +245,10 @@ polynomial::polynomial(std::istream& is)
                 M = ch - '0';
                 state = ED;
                 break;
+            case LATIN:
+                m.vars[m.vars.size() - 1].pow.vars.push_back(var<monomial> {ch});
+                state = EV;
+                break;
             default:
                 state = ERR;
             }
@@ -254,12 +258,12 @@ polynomial::polynomial(std::istream& is)
             switch (ch)
             {
             case '*':
-                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 M = E = S = 1;
                 state = I;
                 break;
             case '+':
-                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 members.push_back(m);
                 m = monomial{};
                 m.n = 1;
@@ -267,7 +271,7 @@ polynomial::polynomial(std::istream& is)
                 state = W;
                 break;
             case '-':
-                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 members.push_back(m);
                 m = monomial{};
                 m.n = 1;
@@ -282,13 +286,13 @@ polynomial::polynomial(std::istream& is)
                 state = EF;
                 break;
             case LATIN:
-                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
-                m.vars.push_back(var<double> {ch});
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
+                m.vars[m.vars.size() - 1].pow.vars.push_back(var<monomial> {ch});
                 M = E = S = 1;
-                state = V;
+                state = EV;
                 break;
             case '\n':
-                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 members.push_back(m);
                 break;
             default:
@@ -300,12 +304,12 @@ polynomial::polynomial(std::istream& is)
             switch (ch)
             {
             case '*':
-                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 M = E = S = 1;
                 state = I;
                 break;
             case '+':
-                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 members.push_back(m);
                 m = monomial{};
                 m.n = 1;
@@ -313,7 +317,7 @@ polynomial::polynomial(std::istream& is)
                 state = W;
                 break;
             case '-':
-                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 members.push_back(m);
                 m = monomial{};
                 m.n = 1;
@@ -326,15 +330,48 @@ polynomial::polynomial(std::istream& is)
                 E *= 10;
                 break;
             case LATIN:
-                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
-                m.vars.push_back(var<double> {ch});
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
+                m.vars[m.vars.size() - 1].pow.vars.push_back(var<monomial> {ch});
                 M = E = S = 1;
-                state = V;
+                state = EV;
                 break;
             case '\n':
-                m.vars[m.vars.size() - 1].pow = M * S / (double)E;
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 members.push_back(m);
                 break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case EV:
+            switch (ch)
+            {
+            case '*':
+                state = I;
+                break;
+            case '+':
+                state = W;
+                break;
+            case '-':
+                members.push_back(m);
+                m = monomial{};
+                m.n = 1;
+                S = -1;
+                state = W;
+                break;
+            case LATIN:
+                m.vars[m.vars.size() - 1].pow.vars.push_back(var<monomial> {ch});
+                break;
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = ED;
+                break;
+            case '\n':
+                members.push_back(m);
+                break;
+            default:
+                state = ERR;
             }
             break;
 

@@ -34,21 +34,21 @@ class monomial
 private:
     enum states {inital, main_state, whole_part, fraction, letter, exponent};
 
-    static bool comp(var<double> v1, var<double> v2)
+    static bool comp(var<monomial> v1, var<monomial> v2)
     { return v1.name < v2.name; }
 public:
-    std::vector<var<double>> vars;
+    std::vector<var<monomial>> vars;
     double n; //numerical value
 
     monomial() : n{0} {}
     monomial(double N) : n{N} {}
     monomial(int N) : n{(double)N} {}
-    monomial(std::vector<var<double>> v) : n{1}
+    monomial(std::vector<var<monomial>> v) : n{1}
     {
         std::sort(v.begin(), v.end(), comp);
         vars = v;
     }
-    monomial(double N, std::vector<var<double>> v) : n{N}
+    monomial(double N, std::vector<var<monomial>> v) : n{N}
     {
         std::sort(v.begin(), v.end(), comp);
         vars = v;
@@ -90,6 +90,10 @@ public:
     {
         return !(*this == m);
     }
+    bool operator!=(double d)
+    {
+        return *this != monomial{d};
+    }
 
     friend std::ostream& operator<<(std::ostream& os, monomial m)
     {
@@ -103,7 +107,13 @@ public:
         for (int i = 0; i < m.vars.size(); i++)
         {
             if (m.vars[i].pow != 1.0)
-                os << m.vars[i].name << '^' << m.vars[i].pow;
+            {
+                os << m.vars[i].name << '^';
+                if (m.vars[i].pow.vars.size())
+                    std::cout << '(' << m.vars[i].pow << ')';
+                else
+                    std::cout << m.vars[i].pow;
+            }
             else
                 os << m.vars[i].name;
 

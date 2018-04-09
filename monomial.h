@@ -56,6 +56,9 @@ public:
 
     void vars_sort()
     {
+        if (vars.size() <= 1)
+            return;
+            
         std::sort(vars.begin(), vars.end(), comp);
 
         for (int i = 0; i < vars.size() - 1; i++)

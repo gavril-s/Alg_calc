@@ -11,6 +11,8 @@ int main()
         try
         {
             polynomial p{cin};
+            cout << p << endl << endl;
+
             p = simplification(p);
             cout << p << endl;
         }

@@ -7,7 +7,7 @@ class polynomial
 private:
     std::vector<monomial> members;
 
-    enum states {I, W, D, F, V, EXP, ED, EF, EV, ERR};
+    enum states {I, W, D, F, V, EXP, ED, EF, EV, B, BE, BED, ERR};
     /*
         I - inital
         W - waiting for smt after +/-
@@ -18,11 +18,21 @@ private:
         ED - exponent : digit
         EF - exponent : fraction
         EV - exponent : variable
+        B - brackets
+        BE - brackets : exponent
+        BED - brackets : exponent : digit
         ERR - error
     */
 
     static bool comp(monomial m1, monomial m2)
     {
+        if (!m1.vars.size() && m2.vars.size())
+            return false;
+        if (m1.vars.size() && !m2.vars.size())
+            return true;
+        if (!m1.vars.size() && !m2.vars.size())
+            return m1.n < m2.n;
+
         int i = 0;
         for (; m1.vars[i].name == m2.vars[i].name; i++) {}
 
@@ -32,6 +42,10 @@ public:
     polynomial() {}
     polynomial(std::istream&);
     polynomial(std::vector<monomial> m) : members{m} {}
+    polynomial(monomial m)
+    {
+        members.push_back(m);
+    }
     polynomial(int i)
     {
         members.push_back(monomial{i});
@@ -47,10 +61,74 @@ public:
     polynomial operator-(polynomial);
     polynomial operator*(polynomial);
 
-    friend std::istream& operator>>(std::istream&, polynomial);
+    void operator+=(polynomial p)
+    {
+        *this = *this + p;
+    }
+    void operator-=(polynomial p)
+    {
+        *this = *this - p;
+    }
+    void operator*=(polynomial p)
+    {
+        *this = *this * p;
+    }
+
+    polynomial operator+(monomial m)
+    {
+        return *this + polynomial{m};
+    }
+    polynomial operator-(monomial m)
+    {
+        return *this - polynomial{m};
+    }
+    polynomial operator*(monomial m)
+    {
+        return *this * polynomial{m};
+    }
+
+    friend std::istream& operator>>(std::istream& is, polynomial& p)
+    {
+        p = polynomial{is};
+        return is;
+    }
     friend std::ostream& operator<<(std::ostream&, polynomial);
 
     friend polynomial simplification(polynomial);
+
+    bool operator==(polynomial p)
+    {
+        if (members.size() != p.members.size())
+            return false;
+
+        for (int i = 0; i < members.size(); i++)
+            if (members[i] != p.members[i])
+                return false;
+
+        return true;
+    }
+
+    bool operator!=(polynomial p)
+    {
+        return !(*this == p);
+    }
+
+    bool operator==(int i)
+    {
+        return *this == polynomial{i};
+    }
+
+    bool operator!=(int i)
+    {
+        return *this != polynomial{i};
+    }
+
+    polynomial pow(int n)
+    {
+        if (n == 0)
+            return polynomial{1};
+        return *this * (*this).pow(n - 1);
+    }
 };
 
 polynomial::polynomial(std::istream& is)
@@ -94,8 +172,12 @@ polynomial::polynomial(std::istream& is)
                 state = V;
                 break;
             case '(':
-                temp = polynomial{is};
-
+                if (!temp.members.size())
+                    temp = polynomial{is};
+                else
+                    temp *= polynomial{is};
+                state = B;
+                break;
             default:
                 state = ERR;
             }
@@ -114,6 +196,15 @@ polynomial::polynomial(std::istream& is)
                 m.vars.push_back(var<monomial> {ch});
                 state = V;
                 break;
+            case '(':
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+                if (!temp.members.size())
+                    temp = polynomial{is};
+                else
+                    temp *= polynomial{is};
+                state = B;
+                break;
             default:
                 state = ERR;
             }
@@ -129,7 +220,11 @@ polynomial::polynomial(std::istream& is)
                 break;
             case '+':
                 m.n *= M * S / (double)E;
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 m = monomial{};
                 m.n = 1;
                 M = E = S = 1;
@@ -137,7 +232,11 @@ polynomial::polynomial(std::istream& is)
                 break;
             case '-':
                 m.n *= M * S / (double)E;
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 m = monomial{};
                 m.n = 1;
                 M = E = 1;
@@ -156,9 +255,31 @@ polynomial::polynomial(std::istream& is)
                 m.vars.push_back(var<monomial> {ch});
                 state = V;
                 break;
+            case '(':
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+                if (!temp.members.size())
+                    temp = polynomial{is};
+                else
+                    temp *= polynomial{is};
+                state = B;
+                break;
+            case ')':
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                ch = '\n';
+                break;
             case '\n':
                 m.n *= M * S / (double)E;
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 break;
             default:
                 state = ERR;
@@ -175,7 +296,11 @@ polynomial::polynomial(std::istream& is)
                 break;
             case '+':
                 m.n *= M * S / (double)E;
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 m = monomial{};
                 m.n = 1;
                 M = E = S = 1;
@@ -183,7 +308,11 @@ polynomial::polynomial(std::istream& is)
                 break;
             case '-':
                 m.n *= M * S / (double)E;
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 m = monomial{};
                 m.n = 1;
                 M = E = 1;
@@ -200,9 +329,31 @@ polynomial::polynomial(std::istream& is)
                 m.vars.push_back(var<monomial> {ch});
                 state = V;
                 break;
+            case '(':
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+                if (!temp.members.size())
+                    temp = polynomial{is};
+                else
+                    temp *= polynomial{is};
+                state = B;
+                break;
+            case ')':
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                ch = '\n';
+                break;
             case '\n':
                 m.n *= M * S / (double)E;
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 break;
             default:
                 state = ERR;
@@ -216,14 +367,22 @@ polynomial::polynomial(std::istream& is)
                 state = I;
                 break;
             case '+':
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 m = monomial{};
                 m.n = 1;
                 S = 1;
                 state = W;
                 break;
             case '-':
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 m = monomial{};
                 m.n = 1;
                 S = -1;
@@ -239,8 +398,26 @@ polynomial::polynomial(std::istream& is)
             case '^':
                 state = EXP;
                 break;
+            case '(':
+                if (!temp.members.size())
+                    temp = polynomial{is};
+                else
+                    temp *= polynomial{is};
+                state = B;
+                break;
+            case ')':
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                ch = '\n';
+                break;
             case '\n':
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 break;
             default:
                 state = ERR;
@@ -279,7 +456,11 @@ polynomial::polynomial(std::istream& is)
                 break;
             case '+':
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 m = monomial{};
                 m.n = 1;
                 M = E = S = 1;
@@ -287,7 +468,11 @@ polynomial::polynomial(std::istream& is)
                 break;
             case '-':
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 m = monomial{};
                 m.n = 1;
                 M = E = 1;
@@ -306,9 +491,31 @@ polynomial::polynomial(std::istream& is)
                 M = E = S = 1;
                 state = EV;
                 break;
+            case '(':
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
+                M = E = S = 1;
+                if (!temp.members.size())
+                    temp = polynomial{is};
+                else
+                    temp *= polynomial{is};
+                state = B;
+                break;
+            case ')':
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
+                M = E = S = 1;
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                ch = '\n';
+                break;
             case '\n':
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 break;
             default:
                 state = ERR;
@@ -325,7 +532,11 @@ polynomial::polynomial(std::istream& is)
                 break;
             case '+':
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 m = monomial{};
                 m.n = 1;
                 M = E = S = 1;
@@ -333,7 +544,11 @@ polynomial::polynomial(std::istream& is)
                 break;
             case '-':
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 m = monomial{};
                 m.n = 1;
                 M = E = 1;
@@ -350,9 +565,31 @@ polynomial::polynomial(std::istream& is)
                 M = E = S = 1;
                 state = EV;
                 break;
+            case '(':
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
+                M = E = S = 1;
+                if (!temp.members.size())
+                    temp = polynomial{is};
+                else
+                    temp *= polynomial{is};
+                state = B;
+                break;
+            case ')':
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
+                M = E = S = 1;
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                ch = '\n';
+                break;
             case '\n':
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 break;
             default:
                 state = ERR;
@@ -369,7 +606,11 @@ polynomial::polynomial(std::istream& is)
                 state = W;
                 break;
             case '-':
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
                 m = monomial{};
                 m.n = 1;
                 S = -1;
@@ -382,8 +623,128 @@ polynomial::polynomial(std::istream& is)
                 M = ch - '0';
                 state = ED;
                 break;
+            case '(':
+                if (!temp.members.size())
+                    temp = polynomial{is};
+                else
+                    temp *= polynomial{is};
+                state = B;
+                break;
+            case ')':
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                ch = '\n';
+                break;
             case '\n':
-                members.push_back(m);
+                if (!temp.members.size())
+                    members.push_back(m);
+                else
+                    *this += temp * m;
+                temp = polynomial{};
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case B:
+            switch (ch)
+            {
+            case '*':
+                state = I;
+                break;
+            case '+':
+                *this += temp * m;
+                temp = polynomial{};
+                m = monomial{};
+                m.n = 1;
+                state = W;
+                break;
+            case '-':
+                *this += temp * m;
+                S = -1;
+                temp = polynomial{};
+                m = monomial{};
+                m.n = 1;
+                state = W;
+                break;
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = D;
+                break;
+            case LATIN:
+                m.vars.push_back(var<monomial> {ch});
+                state = V;
+                break;
+            case '^':
+                state = BE;
+                break;
+            case '(':
+                temp *= polynomial{is};
+                break;
+            case ')':
+                *this += temp * m;
+                ch = '\n';
+                break;
+            case '\n':
+                *this += temp * m;
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case BE:
+            switch (ch)
+            {
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = BED;
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case BED:
+            switch (ch)
+            {
+            case '*':
+                temp = temp.pow(M * S / (double)E);
+                state = I;
+                break;
+            case '+':
+                temp = temp.pow(M * S / (double)E);
+                *this += temp * m;
+                M = E = S = 1;
+                temp = polynomial{};
+                m = monomial{};
+                m.n = 1;
+                state = W;
+                break;
+            case '-':
+                temp = temp.pow(M * S / (double)E);
+                *this += temp * m;
+                M = E = 1;
+                S = -1;
+                temp = polynomial{};
+                m = monomial{};
+                m.n = 1;
+                state = W;
+                break;
+            case DECIMAL_DIGITS:
+                M = M * 10 + (ch - '0');
+                break;
+            case ')':
+                temp = temp.pow(M * S / (double)E);
+                *this += temp * m;
+                ch = '\n';
+                break;
+            case '\n':
+                temp = temp.pow(M * S / (double)E);
+                *this += temp * m;
                 break;
             default:
                 state = ERR;
@@ -405,23 +766,6 @@ polynomial::polynomial(std::istream& is)
             break;
         }
     }
-}
-
-std::istream& operator>>(std::istream& is, polynomial p)
-{
-    std::string str;
-    char ch;
-    is.get(ch);
-
-    while ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-' ||
-    ch == '+' || ch == '*' || ch == '/' || ch == '^' || ch == ' ')
-    {
-        str += ch;
-        is >> ch;
-    }
-
-    p = polynomial{str};
-    return is;
 }
 
 std::ostream& operator<<(std::ostream& os, polynomial p)
@@ -489,11 +833,12 @@ polynomial polynomial::operator*(polynomial p)
 
 polynomial simplification(polynomial p)
 {
+
     for (auto i : p.members)
         i.vars_sort();
 
     std::sort(p.members.begin(), p.members.end(), &polynomial::comp);
-    
+
     for (int i = 0; i < p.members.size() - 1; i++)
     {
         if (p.members[i].vars.size() != p.members[i+1].vars.size())
@@ -507,6 +852,7 @@ polynomial simplification(polynomial p)
                 p.members[i].vars[j].pow != p.members[i+1].vars[j].pow)
             {
                 b = false;
+                break;
             }
         }
 

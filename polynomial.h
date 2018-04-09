@@ -17,8 +17,17 @@ private:
         EXP - exponent
         ED - exponent : digit
         EF - exponent : fraction
+        EV - exponent : variable
         ERR - error
     */
+
+    static bool comp(monomial m1, monomial m2)
+    {
+        int i = 0;
+        for (; m1.vars[i].name == m2.vars[i].name; i++) {}
+
+        return m1.vars[i].name < m2.vars[i].name;
+    }
 public:
     polynomial() {}
     polynomial(std::istream&);
@@ -40,6 +49,8 @@ public:
 
     friend std::istream& operator>>(std::istream&, polynomial);
     friend std::ostream& operator<<(std::ostream&, polynomial);
+
+    friend polynomial simplification(polynomial);
 };
 
 polynomial::polynomial(std::istream& is)
@@ -47,6 +58,7 @@ polynomial::polynomial(std::istream& is)
     states state = I;
     int M = 1, E = 1, S = 1;
 
+    polynomial temp;
     monomial m;
     m.n = 1;
 
@@ -81,6 +93,9 @@ polynomial::polynomial(std::istream& is)
                 m.vars.push_back(var<monomial> {ch});
                 state = V;
                 break;
+            case '(':
+                temp = polynomial{is};
+
             default:
                 state = ERR;
             }
@@ -470,4 +485,38 @@ polynomial polynomial::operator*(polynomial p)
             res.members.push_back(i * j);
 
     return res;
+}
+
+polynomial simplification(polynomial p)
+{
+    for (auto i : p.members)
+        i.vars_sort();
+
+    std::sort(p.members.begin(), p.members.end(), &polynomial::comp);
+    
+    for (int i = 0; i < p.members.size() - 1; i++)
+    {
+        if (p.members[i].vars.size() != p.members[i+1].vars.size())
+            continue;
+
+        bool b = true;
+
+        for (int j = 0; j < p.members[i].vars.size(); j++)
+        {
+            if (p.members[i].vars[j].name != p.members[i+1].vars[j].name ||
+                p.members[i].vars[j].pow != p.members[i+1].vars[j].pow)
+            {
+                b = false;
+            }
+        }
+
+        if (b)
+        {
+            p.members[i].n += p.members[i+1].n;
+            p.members.erase(p.members.begin() + i + 1, p.members.begin() + i + 2);
+            i--;
+        }
+    }
+
+    return p;
 }

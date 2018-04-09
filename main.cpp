@@ -11,6 +11,7 @@ int main()
         try
         {
             polynomial p{cin};
+            p = simplification(p);
             cout << p << endl;
         }
         catch (std::string str)

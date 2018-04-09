@@ -54,6 +54,20 @@ public:
         vars = v;
     }
 
+    void vars_sort()
+    {
+        std::sort(vars.begin(), vars.end(), comp);
+
+        for (int i = 0; i < vars.size() - 1; i++)
+        {
+            while (vars[i].name == vars[i+1].name)
+            {
+                vars[i].pow += vars[i+1].pow;
+                vars.erase(vars.begin() + i + 1, vars.begin() + i + 2);
+            }
+        }
+    }
+
     monomial operator+(monomial);
     monomial operator-(monomial);
     monomial operator*(monomial);
@@ -109,7 +123,7 @@ public:
             if (m.vars[i].pow != 1.0)
             {
                 os << m.vars[i].name << '^';
-                if (m.vars[i].pow.vars.size())
+                if (m.vars[i].pow.vars.size() > 1)
                     std::cout << '(' << m.vars[i].pow << ')';
                 else
                     std::cout << m.vars[i].pow;

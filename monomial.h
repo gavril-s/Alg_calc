@@ -56,9 +56,14 @@ public:
 
     void vars_sort()
     {
+        if (n == 0)
+        {
+            vars = std::vector<var<monomial>> {};
+            return;
+        }
         if (vars.size() <= 1)
             return;
-            
+
         std::sort(vars.begin(), vars.end(), comp);
 
         for (int i = 0; i < vars.size() - 1; i++)

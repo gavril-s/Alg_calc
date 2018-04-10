@@ -236,6 +236,7 @@ polynomial simplification(polynomial p)
         i.vars_sort();
 
     std::sort(p.members.begin(), p.members.end(), &polynomial::comp);
+
     for (int i = 0; i < p.members.size() - 1; i++)
     {
         if (p.members[i].vars.size() != p.members[i+1].vars.size())
@@ -261,6 +262,15 @@ polynomial simplification(polynomial p)
         }
     }
 
+    for (int i = 0; i < p.members.size(); i++)
+    {
+        if (p.members[i].n == 0)
+        {
+            p.members.erase(p.members.begin() + i, p.members.begin() + i + 1);
+            i--;
+        }
+    }
+
     return p;
 }
 
@@ -274,7 +284,7 @@ polynomial::polynomial(std::istream& is)
     monomial m;
     m.n = 1;
 
-    std::string str;
+    static std::string str;
     char ch = '0';
 
     while (ch != '\n')
@@ -399,6 +409,7 @@ polynomial::polynomial(std::istream& is)
                 ch = '\n';
                 break;
             case '\n':
+                str.clear();
                 m.n *= M * S / (double)E;
                 if (!p.members.size())
                     members.push_back(m);
@@ -470,6 +481,7 @@ polynomial::polynomial(std::istream& is)
                 ch = '\n';
                 break;
             case '\n':
+                str.clear();
                 m.n *= M * S / (double)E;
                 if (!p.members.size())
                     members.push_back(m);
@@ -532,6 +544,7 @@ polynomial::polynomial(std::istream& is)
                 ch = '\n';
                 break;
             case '\n':
+                str.clear();
                 if (!p.members.size())
                     members.push_back(m);
                 else
@@ -626,6 +639,7 @@ polynomial::polynomial(std::istream& is)
                 ch = '\n';
                 break;
             case '\n':
+                str.clear();
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 if (!p.members.size())
                     members.push_back(m);
@@ -697,6 +711,7 @@ polynomial::polynomial(std::istream& is)
                 ch = '\n';
                 break;
             case '\n':
+                str.clear();
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 if (!p.members.size())
                     members.push_back(m);
@@ -748,6 +763,7 @@ polynomial::polynomial(std::istream& is)
                 ch = '\n';
                 break;
             case '\n':
+                str.clear();
                 if (!p.members.size())
                     members.push_back(m);
                 else
@@ -865,6 +881,7 @@ polynomial::polynomial(std::istream& is)
                 ch = '\n';
                 break;
             case '\n':
+                str.clear();
                 temp = temp.pow(M * S / (double)E);
                 *this += p * temp * m;
                 break;
@@ -884,7 +901,9 @@ polynomial::polynomial(std::istream& is)
                 str += ' ';
             str += '^';
 
-            throw(std::string{"error: bad symbol:\n"} + str);
+            std::string s = str;
+            str.clear();
+            throw(std::string{"error: bad symbol:\n"} + s);
             break;
         }
     }

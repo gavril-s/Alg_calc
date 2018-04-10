@@ -10,11 +10,12 @@ int main()
     {
         try
         {
-            polynomial p{cin};
-            cout << p << endl << endl;
+            polynomial p;
+            cin >> p;
+            //cout << p << endl;
 
             p = simplification(p);
-            cout << p << endl;
+            cout << p << endl << endl;
         }
         catch (std::string str)
         {

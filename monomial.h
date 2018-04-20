@@ -76,6 +76,11 @@ public:
             vars = std::vector<var<monomial>> {};
             return;
         }
+
+        for (int i = 0; i < vars.size(); i++)
+            if (vars[i].pow == 0)
+                vars.erase(vars.begin() + i, vars.begin() + i + 1);
+
         if (vars.size() <= 1)
             return;
 
@@ -123,6 +128,11 @@ public:
                 return false;
         return true;
     }
+    bool operator==(int i)
+    {
+        return *this == monomial{i};
+    }
+
     bool operator!=(monomial m)
     {
         return !(*this == m);
@@ -158,7 +168,7 @@ public:
             if (m.vars[i].pow != 1.0)
             {
                 os << m.vars[i].name << '^';
-                if (m.vars[i].pow.vars.size() > 1)
+                if (m.vars[i].pow.vars.size() >= 1)
                     std::cout << '(' << m.vars[i].pow << ')';
                 else
                     std::cout << m.vars[i].pow;

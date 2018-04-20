@@ -6,23 +6,29 @@
 #include <vector>
 #include <sstream>
 #include <algorithm>
+#include <cmath>
 
 class polynomial
 {
 private:
     std::vector<monomial> members;
 
-    enum states {I, W, D, F, V, EXP, ED, EF, EV, B, BE, BED, ERR};
+    enum states {I, W, D, F, V, DE, DEW, DED, DEF, DEB, EXP, ED, EF, EV, B, BE, BED, ERR};
     /*
         I - inital
         W - waiting for smt after +/-
         D - digit
         F - fraction
         V - variable
-        EXP - exponent
-        ED - exponent : digit
-        EF - exponent : fraction
-        EV - exponent : variable
+        DE - digit : exponent
+        DEW - digit : exponent : waiting for smt after +/-
+        DED - digit : exponent : digit
+        DEF - digit : exponent : fraction
+        DEB - digit : exponent : brackets
+        EXP - exponent              }
+        ED - exponent : digit       }  only for
+        EF - exponent : fraction    }  variables
+        EV - exponent : variable    }
         B - brackets
         BE - brackets : exponent
         BED - brackets : exponent : digit
@@ -246,11 +252,11 @@ polynomial polynomial::operator*(polynomial p)
 
 polynomial simplification(polynomial p)
 {
-    if (p.members.size() <= 1)
-        return p;
-
     for (auto i : p.members)
         i.vars_sort();
+
+    if (p.members.size() <= 1)
+        return p;
 
     std::sort(p.members.begin(), p.members.end(), &polynomial::comp);
 
@@ -300,6 +306,8 @@ polynomial::polynomial(std::istream& is)
     polynomial p{1};
     monomial m;
     m.n = 1;
+    double n = 0; //for numbers' exponentiation in DE
+    bool ok; //for DE state
 
     static std::string str;
     char ch = '0';
@@ -425,6 +433,11 @@ polynomial::polynomial(std::istream& is)
                     *this += p * m;
                 ch = '\n';
                 break;
+            case '^':
+                n = M * S / (double)E;
+                M = E = S = 1;
+                state = DE;
+                break;
             case '\n':
                 str.clear();
                 m.n *= M * S / (double)E;
@@ -497,6 +510,11 @@ polynomial::polynomial(std::istream& is)
                     *this += p * m;
                 ch = '\n';
                 break;
+            case '^':
+                n = M * S / (double)E;
+                M = E = S = 1;
+                state = DE;
+                break;
             case '\n':
                 str.clear();
                 m.n *= M * S / (double)E;
@@ -567,6 +585,384 @@ polynomial::polynomial(std::istream& is)
                 else
                     *this += p * m;
                 p = polynomial{1};
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case DE:
+            switch (ch)
+            {
+            case '+':
+                state = DEW;
+                break;
+            case '-':
+                S = -1;
+                state = DEW;
+                break;
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = DED;
+                break;
+            case '(':
+                state = DEB;
+                temp = polynomial{is};
+                temp = simplification(temp);
+
+                ok = true;
+                for (auto i : temp.members)
+                    if (i.vars.size())
+                    {
+                        ok = false;
+                        break;
+                    }
+                if (temp.members.size() > 1)
+                    ok = false;
+
+                if (ok)
+                {
+                    if (n < 0)
+                    {
+                        m.n *= std::pow(std::abs(n), temp.members[0].n);
+                        m.n *= -1;
+                    }
+                    else
+                        m.n *= std::pow(n, temp.members[0].n);
+                    n = 0;
+                }
+                else
+                {
+                    state = ERR;
+                }
+                temp = polynomial{is};
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case DEW:
+            switch (ch)
+            {
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = DED;
+                break;
+            case '(':
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+
+                state = DEB;
+                temp = polynomial{is};
+                temp = simplification(temp);
+
+                ok = true;
+                for (auto i : temp.members)
+                    if (i.vars.size())
+                    {
+                        ok = false;
+                        break;
+                    }
+                if (temp.members.size() > 1)
+                    ok = false;
+
+                if (ok)
+                {
+                    if (n < 0)
+                    {
+                        m.n *= std::pow(std::abs(n), temp.members[0].n);
+                        m.n *= -1;
+                    }
+                    else
+                        m.n *= std::pow(n, temp.members[0].n);
+                    n = 0;
+                }
+                else
+                {
+                    state = ERR;
+                }
+                temp = polynomial{};
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case DED:
+            switch (ch)
+            {
+            case '+':
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                p = polynomial{1};
+                n = 0;
+                m = monomial{};
+                m.n = 1;
+                M = E = S = 1;
+                state = W;
+                break;
+            case '-':
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                p = polynomial{1};
+                n = 0;
+                m = monomial{};
+                m.n = 1;
+                M = E = 1;
+                S = -1;
+                state = W;
+                break;
+            case '*':
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                n = 0;
+                M = E = S = 1;
+                state = I;
+                break;
+            case DECIMAL_DIGITS:
+                M = M * 10 + (ch - '0');
+                break;
+            case '.':
+                state = DEF;
+                break;
+            case LATIN:
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                n = 0;
+                M = E = S = 1;
+                m.vars.push_back(var<monomial> {ch});
+                state = V;
+                break;
+            case '(':
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                n = 0;
+                M = E = S = 1;
+                temp = polynomial{is};
+                state = B;
+                break;
+            case ')':
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                ch = '\n';
+                break;
+            case '\n':
+                str.clear();
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case DEF:
+            switch (ch)
+            {
+            case '+':
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                p = polynomial{1};
+                n = 0;
+                m = monomial{};
+                m.n = 1;
+                M = E = S = 1;
+                state = W;
+                break;
+            case '-':
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                p = polynomial{1};
+                n = 0;
+                m = monomial{};
+                m.n = 1;
+                M = E = 1;
+                S = -1;
+                state = W;
+                break;
+            case '*':
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                M = E = S = 1;
+                state = I;
+                break;
+            case DECIMAL_DIGITS:
+                M = M * 10 + (ch - '0');
+                E *= 10;
+                break;
+            case '(':
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                n = 0;
+                M = E = S = 1;
+                temp = polynomial{is};
+                state = B;
+                break;
+            case ')':
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                ch = '\n';
+                break;
+            case '\n':
+                str.clear();
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case DEB:
+            switch (ch)
+            {
+            case '+':
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                p = polynomial{1};
+                m = monomial{};
+                m.n = 1;
+                state = W;
+                break;
+            case '-':
+                S = -1;
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                p = polynomial{1};
+                m = monomial{};
+                m.n = 1;
+                state = W;
+                break;
+            case '*':
+                state = I;
+                break;
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = D;
+                break;
+            case LATIN:
+                m.vars.push_back(var<monomial> {ch});
+                state = V;
+                break;
+            case '(':
+                temp = polynomial{is};
+                state = B;
+                break;
+            case ')':
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                ch = '\n';
+                break;
+            case '\n':
+                str.clear();
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
                 break;
             default:
                 state = ERR;

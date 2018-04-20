@@ -49,16 +49,7 @@ int main()
                 pair<var<monomial>, vector<double>> p = solve(str);
 
                 sort(p.second.begin(), p.second.end());
-                /*
-                for (int i = 0; i < p.second.size() - 1; i++)
-                {
-                    if (p.second[i] == p.second[i+1])
-                    {
-                        p.second.erase(p.second.begin() + i + 1, p.second.begin() + i + 2);
-                        i--;
-                    }
-                }
-                */
+
                 cout << p.first << " = ";
                 for (int i = 0; i < p.second.size(); i++)
                 {

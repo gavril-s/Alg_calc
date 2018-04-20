@@ -81,7 +81,7 @@ public:
     polynomial(std::string str)
     {
         std::stringstream ss;
-        ss << str;
+        ss << str << '\n';
         *this = polynomial{ss};
     }
 
@@ -143,6 +143,11 @@ public:
 
     bool operator==(int i)
     {
+        if (i == 0)
+        {
+            if (!members.size())
+                return true;
+        }
         return *this == polynomial{i};
     }
 
@@ -157,6 +162,10 @@ public:
             return polynomial{1};
         return *this * (*this).pow(n - 1);
     }
+
+    friend std::pair<var<monomial>, std::vector<double>> solve(std::string);
+    friend std::pair<var<monomial>, std::vector<double>> solve(polynomial, polynomial);
+    friend bool is_valid_equation(polynomial, int);
 };
 
 std::ostream& operator<<(std::ostream& os, polynomial p)
@@ -177,10 +186,18 @@ std::ostream& operator<<(std::ostream& os, polynomial p)
             else if (m.n < 0)
             {
                 m.n = abs(m.n);
+
                 if (!first)
                     os << " - " << m;
                 else
                     os << '-' << m;
+            }
+            else
+            {
+                if (!first)
+                    os << " + " << m;
+                else
+                    os << m;
             }
 
             if (first)

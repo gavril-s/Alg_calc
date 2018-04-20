@@ -1,21 +1,89 @@
 #include <iostream>
+#include <vector>
 #include <string>
+#include <sstream>
+#include <algorithm>
+#include "monomial.h"
 #include "polynomial.h"
+#include "equations.h"
 
 using namespace std;
 
+void get_str(string& str)
+{
+    char ch;
+    cin.get(ch);
+
+    while (ch != '\n')
+    {
+        str += ch;
+        cin.get(ch);
+    }
+}
+
 int main()
 {
+    const polynomial EXIT {"exit"};
+    const polynomial QUIT {"quit"};
+    const polynomial CLEAR {"clear"};
+
     while (true)
     {
         try
         {
-            polynomial p;
-            cin >> p;
-            //cout << p << endl;
+            cout << "> ";
 
-            p = simplification(p);
-            cout << p << endl << endl;
+            string str;
+            get_str(str);
+
+            bool equation = false;
+            for (char ch : str)
+                if (ch == '=')
+                {
+                    equation = true;
+                    break;
+                }
+
+            if (equation)
+            {
+                pair<var<monomial>, vector<double>> p = solve(str);
+
+                sort(p.second.begin(), p.second.end());
+                /*
+                for (int i = 0; i < p.second.size() - 1; i++)
+                {
+                    if (p.second[i] == p.second[i+1])
+                    {
+                        p.second.erase(p.second.begin() + i + 1, p.second.begin() + i + 2);
+                        i--;
+                    }
+                }
+                */
+                cout << p.first << " = ";
+                for (int i = 0; i < p.second.size(); i++)
+                {
+                    cout << p.second[i];
+                    if (i + 1 < p.second.size())
+                        cout << "; ";
+                }
+                cout << endl;
+            }
+            else
+            {
+                polynomial p {str};
+
+                if (p == CLEAR)
+                {
+                    system("clear");
+                    continue;
+                }
+
+                if (p == EXIT || p == QUIT)
+                    break;
+
+                p = simplification(p);
+                cout << p << endl;
+            }
         }
         catch (std::string str)
         {

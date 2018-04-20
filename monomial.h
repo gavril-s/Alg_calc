@@ -12,6 +12,7 @@ struct var
     char name;
     T pow;
 
+    var() : pow{T{1}} {}
     var(char ch) : name{ch}, pow{T{1}} {}
     var(char ch, T p) : name{ch}, pow{p} {}
 
@@ -23,9 +24,19 @@ struct var
             return false;
         return true;
     }
+
     bool operator!=(var<T> v)
     {
         return !(*this == v);
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, var<T> v)
+    {
+        os << v.name;
+        if (v.pow != T{1})
+            os << '^' << v.pow;
+
+        return os;
     }
 };
 
@@ -43,6 +54,10 @@ public:
     monomial() : n{0} {}
     monomial(double N) : n{N} {}
     monomial(int N) : n{(double)N} {}
+    monomial(var<monomial> v)
+    {
+        vars.push_back(v);
+    }
     monomial(std::vector<var<monomial>> v) : n{1}
     {
         std::sort(v.begin(), v.end(), comp);
@@ -115,6 +130,18 @@ public:
     bool operator!=(double d)
     {
         return *this != monomial{d};
+    }
+
+    bool operator>(monomial m)
+    {
+        if (*this - m != 0)
+            return true;
+        return false;
+    }
+
+    bool operator>(int i)
+    {
+        return *this > monomial{i};
     }
 
     friend std::ostream& operator<<(std::ostream& os, monomial m)

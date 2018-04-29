@@ -78,7 +78,7 @@ int main()
         }
         catch (std::string str)
         {
-            std::cout << str << endl;
+            std::cerr << str << endl;
         }
     }
 

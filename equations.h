@@ -83,11 +83,6 @@ std::pair<var<monomial>, std::vector<double>> solve(std::string str)
     {
         if (i.vars.size())
         {
-            if (i.vars.size() > 1)
-                throw(std::string{"error: more than one variable!"});
-            if (found_var && VAR.name != i.vars[0].name)
-                throw(std::string{"error: more than one variable!"});
-
             if (!found_var)
             {
                 VAR = i.vars[0];
@@ -158,7 +153,7 @@ std::pair<var<monomial>, std::vector<double>> solve(std::string str)
         break;
     case 2:
         D = left.members[1].n * left.members[1].n - 4*left.members[0].n*left.members[2].n;
-        
+
         if (D > 0)
             return std::make_pair(var<monomial>{VAR.name}, std::vector<double>
                 {(-left.members[1].n + std::sqrt(D)) / (2*left.members[0].n),
@@ -184,3 +179,33 @@ std::pair<var<monomial>, std::vector<double>> solve(polynomial left, polynomial 
 
     return solve(ss.str());
 }
+
+/*
+std::pair<std::vector<var<monomial>>, std::vector<double>> solve_sys(std::vector<polynomial> v)
+{
+    for (polynomial& p : v)
+        p = simplification(p);
+
+    std::vector<var<monomial>> vars;
+    for (polynomial p : v)
+        for (monomial m : p.members)
+            for (var<monomial> a : m.vars)
+                if (!(std::find(vars.begin(), vars.end(), a) >= vars.begin && std::find(vars.begin(), vars.end(), a) < vars.end()))
+                    vars.push_back(a);
+
+    if (vars.size() > 2)
+        throw(std::string{"too many variables"});
+
+    return std::make_pair(std::vector<var<monomial>>, std::vector<double>);
+}
+
+std::pair<std::vector<var<monomial>>, std::vector<double>> solve_sys(std::vector<std::string> v)
+{
+    std::vector<polynomial> p (v.size());
+
+    for (std::string str : v)
+        p.push_back(polynomial{str});
+
+    return solve_sys(p);
+}
+*/

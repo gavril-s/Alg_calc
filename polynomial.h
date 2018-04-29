@@ -171,6 +171,8 @@ public:
 
     friend std::pair<var<monomial>, std::vector<double>> solve(std::string);
     friend std::pair<var<monomial>, std::vector<double>> solve(polynomial, polynomial);
+    //friend std::pair<std::vector<var<monomial>>, std::vector<double>> solve_sys(std::vector<std::string>);
+    //friend std::pair<std::vector<var<monomial>>, std::vector<double>> solve_sys(std::vector<polynomial>);
     friend bool is_valid_equation(polynomial, int);
 };
 
@@ -191,7 +193,7 @@ std::ostream& operator<<(std::ostream& os, polynomial p)
             }
             else if (m.n < 0)
             {
-                m.n = abs(m.n);
+                m.n = std::abs(m.n);
 
                 if (!first)
                     os << " - " << m;
@@ -342,6 +344,7 @@ polynomial::polynomial(std::istream& is)
                 break;
             case '(':
                 temp = polynomial{is};
+                temp = simplification(temp);
                 state = B;
                 break;
             default:
@@ -366,6 +369,7 @@ polynomial::polynomial(std::istream& is)
                 m.n *= M * S / (double)E;
                 M = E = S = 1;
                 temp = polynomial{is};
+                temp = simplification(temp);
                 state = B;
                 break;
             default:
@@ -422,6 +426,7 @@ polynomial::polynomial(std::istream& is)
                 m.n *= M * S / (double)E;
                 M = E = S = 1;
                 temp = polynomial{is};
+                temp = simplification(temp);
                 state = B;
                 break;
             case ')':
@@ -499,6 +504,7 @@ polynomial::polynomial(std::istream& is)
                 m.n *= M * S / (double)E;
                 M = E = S = 1;
                 temp = polynomial{is};
+                temp = simplification(temp);
                 state = B;
                 break;
             case ')':
@@ -569,6 +575,7 @@ polynomial::polynomial(std::istream& is)
                 break;
             case '(':
                 temp = polynomial{is};
+                temp = simplification(temp);
                 state = B;
                 break;
             case ')':
@@ -773,6 +780,7 @@ polynomial::polynomial(std::istream& is)
                 n = 0;
                 M = E = S = 1;
                 temp = polynomial{is};
+                temp = simplification(temp);
                 state = B;
                 break;
             case ')':
@@ -876,6 +884,7 @@ polynomial::polynomial(std::istream& is)
                 n = 0;
                 M = E = S = 1;
                 temp = polynomial{is};
+                temp = simplification(temp);
                 state = B;
                 break;
             case ')':
@@ -948,6 +957,7 @@ polynomial::polynomial(std::istream& is)
                 break;
             case '(':
                 temp = polynomial{is};
+                temp = simplification(temp);
                 state = B;
                 break;
             case ')':
@@ -1040,6 +1050,7 @@ polynomial::polynomial(std::istream& is)
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 M = E = S = 1;
                 temp = polynomial{is};
+                temp = simplification(temp);
                 state = B;
                 break;
             case ')':
@@ -1112,6 +1123,7 @@ polynomial::polynomial(std::istream& is)
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 M = E = S = 1;
                 temp = polynomial{is};
+                temp = simplification(temp);
                 state = B;
                 break;
             case ')':
@@ -1166,6 +1178,7 @@ polynomial::polynomial(std::istream& is)
                 break;
             case '(':
                 temp *= polynomial{is};
+                temp = simplification(temp);
                 state = B;
                 break;
             case ')':

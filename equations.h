@@ -93,7 +93,7 @@ std::pair<var<monomial>, std::vector<double>> solve(std::string str)
     }
 
     if (!found_var)
-        throw(std::string{"error: np variable!"});
+        throw(std::string{"error: no variable!"});
 
     left = simplification(left);
 
@@ -102,8 +102,16 @@ std::pair<var<monomial>, std::vector<double>> solve(std::string str)
     {
         if (i.vars.size())
         {
+            if (i.vars.size() > 1)
+                throw(std::string{"error: more than one variable"});
+
             if (!found_var)
+            {
                 found_var = true;
+                VAR = i.vars[0];
+            }
+            else if (found_var)
+                throw(std::string{"error: more than one variable"});
         }
     }
 
@@ -111,10 +119,12 @@ std::pair<var<monomial>, std::vector<double>> solve(std::string str)
     {
         std::stringstream ss;
         if (left == 0)
+        {
             ss << VAR.name << " = (-inf; +inf)";
+            throw(ss.str());
+        }
         else
-            ss << VAR.name << " = ∅";
-        throw(ss.str());
+            throw(std::string{"no solutions"});
     }
 
 

@@ -15,6 +15,7 @@ struct var
     var() : pow{T{1}} {}
     var(char ch) : name{ch}, pow{T{1}} {}
     var(char ch, T p) : name{ch}, pow{p} {}
+    var(char ch, int i) : name{ch}, pow{T{i}} {}
 
     bool operator==(var<T> v)
     {
@@ -43,8 +44,6 @@ struct var
 class monomial
 {
 private:
-    enum states {inital, main_state, whole_part, fraction, letter, exponent};
-
     static bool comp(var<monomial> v1, var<monomial> v2)
     { return v1.name < v2.name; }
 public:
@@ -165,7 +164,7 @@ public:
 
         for (int i = 0; i < m.vars.size(); i++)
         {
-            if (m.vars[i].pow != 1.0)
+            if (m.vars[i].pow > 1)
             {
                 os << m.vars[i].name << '^';
                 if (m.vars[i].pow.vars.size() >= 1)
@@ -173,8 +172,10 @@ public:
                 else
                     std::cout << m.vars[i].pow;
             }
-            else
+            else if (m.vars[i].pow == 1)
                 os << m.vars[i].name;
+            else if (m.vars[i].pow == 0)
+                m.vars.erase(m.vars.begin() + i, m.vars.begin() + i + 1);
 
             if (i + 1 < m.vars.size())
                 os << " * ";
@@ -190,7 +191,7 @@ monomial monomial::operator+(monomial m)
     res.n = n + m.n;
 
     if (m.vars.size() != vars.size())
-        throw(std::string{"Буквенные части одночленов не равны!"});
+        throw(std::string{"The letter parts of monomials are not equal!"});
     for (int i = 0; i < vars.size(); i++)
         if (vars[i].name != m.vars[i].name || vars[i].pow != m.vars[i].pow)
             throw(std::string{"Буквенные части одночленов не равны!"});
@@ -205,10 +206,10 @@ monomial monomial::operator-(monomial m)
     res.n = n - m.n;
 
     if (m.vars.size() != vars.size())
-        throw(std::string{"Буквенные части одночленов не равны!"});
+        throw(std::string{"The letter parts of monomials are not equal!"});
     for (int i = 0; i < vars.size(); i++)
         if (vars[i].name != m.vars[i].name || vars[i].pow != m.vars[i].pow)
-            throw(std::string{"Буквенные части одночленов не равны!"});
+            throw(std::string{"The letter parts of monomials are not equal!"});
 
     res.vars = vars;
     return res;
@@ -242,10 +243,10 @@ monomial monomial::operator/(monomial m)
     res.n = n / m.n;
 
     if (m.vars.size() != vars.size())
-        throw(std::string{"Буквенные части одночленов не равны!"});
+        throw(std::string{"The letter parts of monomials are not equal!"});
     for (int i = 0; i < vars.size(); i++)
         if (vars[i].name != m.vars[i].name)
-            throw(std::string{"Буквенные части одночленов не равны!"});
+            throw(std::string{"The letter parts of monomials are not equalss!"});
 
     res.vars = vars;
     for (int i = 0; i < res.vars.size(); i++)

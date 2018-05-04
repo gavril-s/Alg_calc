@@ -13,25 +13,41 @@ class polynomial
 private:
     std::vector<monomial> members;
 
-    enum states {I, W, D, F, V, DE, DEW, DED, DEF, DEB, EXP, ED, EF, EV, B, BE, BED, ERR};
+    enum states {I, W, D, F, V,
+                DE, DEW, DED, DEF, DEB,
+                EXP, ED, EF, EV,
+                B, BE, BED,
+                DIV, DIVW, DIVD, DIVF, DIVV, DIVB,
+                ERR};
     /*
         I - inital
         W - waiting for smt after +/-
         D - digit
         F - fraction
         V - variable
+
         DE - digit : exponent
         DEW - digit : exponent : waiting for smt after +/-
         DED - digit : exponent : digit
         DEF - digit : exponent : fraction
         DEB - digit : exponent : brackets
+
         EXP - exponent              }
         ED - exponent : digit       }  only for
         EF - exponent : fraction    }  variables
         EV - exponent : variable    }
+
         B - brackets
         BE - brackets : exponent
         BED - brackets : exponent : digit
+        DIV - division
+
+        DIVW - division : waiting for smt after +/-
+        DIVD - division : digit
+        DIVF - division : fraction
+        DIVV - division : variable
+        DIVB - division : brackets
+
         ERR - error
     */
 
@@ -319,7 +335,7 @@ polynomial::polynomial(std::istream& is)
         is.get(ch);
         str += ch;
 
-        if (ch == ' ')
+        if (ch == ' ' || ch == '\t')
             continue;
 
         switch (state)
@@ -422,6 +438,11 @@ polynomial::polynomial(std::istream& is)
                 m.vars.push_back(var<monomial> {ch});
                 state = V;
                 break;
+            case '/':
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+                state = DIV;
+                break;
             case '(':
                 m.n *= M * S / (double)E;
                 M = E = S = 1;
@@ -500,6 +521,11 @@ polynomial::polynomial(std::istream& is)
                 m.vars.push_back(var<monomial> {ch});
                 state = V;
                 break;
+            case '/':
+                m.n *= M * S / (double)E;
+                M = E = S = 1;
+                state = DIV;
+                break;
             case '(':
                 m.n *= M * S / (double)E;
                 M = E = S = 1;
@@ -569,6 +595,9 @@ polynomial::polynomial(std::istream& is)
             case DECIMAL_DIGITS:
                 M = ch - '0';
                 state = D;
+                break;
+            case '/':
+                state = DIV;
                 break;
             case '^':
                 state = EXP;
@@ -642,7 +671,7 @@ polynomial::polynomial(std::istream& is)
                 {
                     state = ERR;
                 }
-                temp = polynomial{is};
+                temp = polynomial{};
                 break;
             default:
                 state = ERR;
@@ -749,6 +778,18 @@ polynomial::polynomial(std::istream& is)
                 n = 0;
                 M = E = S = 1;
                 state = I;
+                break;
+            case '/':
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                n = 0;
+                M = E = S = 1;
+                state = DIV;
                 break;
             case DECIMAL_DIGITS:
                 M = M * 10 + (ch - '0');
@@ -869,6 +910,18 @@ polynomial::polynomial(std::istream& is)
                 M = E = S = 1;
                 state = I;
                 break;
+            case '/':
+                if (n < 0)
+                {
+                    m.n *= std::pow(std::abs(n), M * S / (double)E);
+                    m.n *= -1;
+                }
+                else
+                    m.n *= std::pow(n, M * S / (double)E);
+                n = 0;
+                M = E = S = 1;
+                state = DIV;
+                break;
             case DECIMAL_DIGITS:
                 M = M * 10 + (ch - '0');
                 E *= 10;
@@ -947,6 +1000,9 @@ polynomial::polynomial(std::istream& is)
             case '*':
                 state = I;
                 break;
+            case '/':
+                state = DIV;
+                break;
             case DECIMAL_DIGITS:
                 M = ch - '0';
                 state = D;
@@ -1008,6 +1064,11 @@ polynomial::polynomial(std::istream& is)
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 M = E = S = 1;
                 state = I;
+                break;
+            case '/':
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
+                M = E = S = 1;
+                state = DIV;
                 break;
             case '+':
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
@@ -1084,6 +1145,11 @@ polynomial::polynomial(std::istream& is)
                 M = E = S = 1;
                 state = I;
                 break;
+            case '/':
+                m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
+                M = E = S = 1;
+                state = DIV;
+                break;
             case '+':
                 m.vars[m.vars.size() - 1].pow.n = M * S / (double)E;
                 if (!p.members.size())
@@ -1155,6 +1221,9 @@ polynomial::polynomial(std::istream& is)
             case '*':
                 state = I;
                 break;
+            case '/':
+                state = DIV;
+                break;
             case '+':
                 state = W;
                 break;
@@ -1209,6 +1278,11 @@ polynomial::polynomial(std::istream& is)
                 temp = polynomial{};
                 state = I;
                 break;
+            case '/':
+                p *= temp;
+                temp = polynomial{};
+                state = DIV;
+                break;
             case '+':
                 *this += p * temp * m;
                 p = polynomial{1};
@@ -1244,12 +1318,14 @@ polynomial::polynomial(std::istream& is)
             case '(':
                 p *= temp;
                 temp = polynomial{is};
+                temp = simplification(temp);
                 break;
             case ')':
                 *this += p * temp * m;
                 ch = '\n';
                 break;
             case '\n':
+                str.clear();
                 *this += p * temp * m;
                 break;
             default:
@@ -1277,6 +1353,12 @@ polynomial::polynomial(std::istream& is)
                 temp = polynomial{};
                 state = I;
                 break;
+            case '/':
+                p *= temp.pow(M * S / (double)E);
+                temp = polynomial{};
+                state = DIV;
+                break;
+                state = I;
             case '+':
                 temp = temp.pow(M * S / (double)E);
                 *this += p * temp * m;
@@ -1316,12 +1398,352 @@ polynomial::polynomial(std::istream& is)
             }
             break;
 
+        case DIV:
+            switch (ch)
+            {
+            case '-':
+                S = -1;
+                state = DIVW;
+                break;
+            case '+':
+                state = DIVW;
+                break;
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = DIVD;
+                break;
+            case LATIN:
+                m.vars.push_back(var<monomial> {ch, -1});
+                state = DIVV;
+                break;
+            case '(':
+                temp = polynomial{is};
+                temp = simplification(temp);
+                state = DIVB;
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case DIVW:
+            switch (ch)
+            {
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = DIVD;
+                break;
+            case LATIN:
+                m.n *= 1 / (M * S / (double)E);
+                M = E = S = 1;
+                m.vars.push_back(var<monomial> {ch, -1});
+                state = DIVV;
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case DIVD:
+            switch (ch)
+            {
+            case '+':
+                m.n *= 1 / (M * S / (double)E);
+                M = E = S = 1;
+
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+
+                m = monomial{};
+                m.n = 1;
+                p = polynomial{1};
+
+                state = W;
+                break;
+            case '-':
+                m.n *= 1 / (M * S / (double)E);
+                M = E = 1;
+                S = -1;
+
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+
+                m = monomial{};
+                m.n = 1;
+                p = polynomial{1};
+
+                state = W;
+                break;
+            case '*':
+                m.n *= 1 / (M * S / (double)E);
+                M = E = S = 1;
+                state = I;
+                break;
+            case '/':
+                m.n *= 1 / (M * S / (double)E);
+                M = E = S = 1;
+                state = DIV;
+                break;
+            case DECIMAL_DIGITS:
+                M = M * 10 + (ch - '0');
+                break;
+            case LATIN:
+                m.n *= 1 / (M * S / (double)E);
+                M = E = S = 1;
+                m.vars.push_back(var<monomial> {ch, -1});
+                state = DIVV;
+                break;
+            case '.':
+                state = DIVF;
+                break;
+            case '(':
+                m.n *= 1 / (M * S / (double)E);
+                M = E = S = 1;
+                temp = polynomial{is};
+                temp = simplification(temp);
+                state = B;
+                break;
+            case ')':
+                m.n *= 1 / (M * S / (double)E);
+                M = E = S = 1;
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                ch = '\n';
+                break;
+            case '\n':
+                str.clear();
+                m.n *= 1 / (M * S / (double)E);
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case DIVF:
+            switch (ch)
+            {
+            case '+':
+                m.n *= 1 / (M * S / (double)E);
+                M = E = S = 1;
+
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+
+                m = monomial{};
+                m.n = 1;
+                p = polynomial{1};
+
+                state = W;
+                break;
+            case '-':
+                m.n *= 1 / (M * S / (double)E);
+                M = E = 1;
+                S = -1;
+
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+
+                m = monomial{};
+                m.n = 1;
+                p = polynomial{1};
+
+                state = W;
+                break;
+            case '*':
+                m.n *= 1 / (M * S / (double)E);
+                M = E = S = 1;
+                state = I;
+                break;
+            case '/':
+                m.n *= 1 / (M * S / (double)E);
+                M = E = S = 1;
+                state = DIV;
+                break;
+            case DECIMAL_DIGITS:
+                M = M * 10 + (ch - '0');
+                E *= 10;
+                break;
+            case LATIN:
+                m.n *= 1 / (M * S / (double)E);
+                M = E = S = 1;
+                m.vars.push_back(var<monomial> {ch, -1});
+                state = DIVV;
+                break;
+            case '(':
+                m.n *= 1 / (M * S / (double)E);
+                M = E = S = 1;
+                temp = polynomial{is};
+                temp = simplification(temp);
+                state = B;
+                break;
+            case ')':
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                ch = '\n';
+                break;
+            case '\n':
+                str.clear();
+                m.n *= 1 / (M * S / (double)E);
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case DIVV:
+            switch (ch)
+            {
+            case '+':
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+
+                m = monomial{};
+                m.n = 1;
+                p = polynomial{1};
+
+                state = W;
+                break;
+            case '-':
+                S = -1;
+
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+
+                m = monomial{};
+                m.n = 1;
+                p = polynomial{1};
+
+                state = W;
+                break;
+            case '*':
+                state = I;
+                break;
+            case '/':
+                state = DIV;
+                break;
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = DIVD;
+                break;
+            case LATIN:
+                m.vars.push_back(var<monomial> {ch, -1});
+                break;
+            case '(':
+                temp = polynomial{is};
+                temp = simplification(temp);
+                state = B;
+                break;
+            case ')':
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                ch = '\n';
+                break;
+            case '\n':
+                str.clear();
+                if (!p.members.size())
+                    members.push_back(m);
+                else
+                    *this += p * m;
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
+        case DIVB:
+            for (monomial& m : temp.members)
+            {
+                m.n = std::pow(m.n, -1);
+
+                for (var<monomial>&  v : m.vars)
+                    v.pow *= -1;
+            }
+            p *= temp;
+            temp = polynomial{};
+
+            switch (ch)
+            {
+            case '*':
+                state = I;
+                break;
+            case '/':
+                state = DIV;
+                break;
+            case '+':
+                *this += p * m;
+                p = polynomial{1};
+                temp = polynomial{};
+                m = monomial{};
+                m.n = 1;
+                state = W;
+                break;
+            case '-':
+                *this += p * m;
+                S = -1;
+                p = polynomial{1};
+                temp = polynomial{};
+                m = monomial{};
+                m.n = 1;
+                state = W;
+                break;
+            case DECIMAL_DIGITS:
+                M = ch - '0';
+                state = D;
+                break;
+            case LATIN:
+                m.vars.push_back(var<monomial> {ch});
+                state = V;
+                break;
+            case '(':
+                temp = polynomial{is};
+                temp = simplification(temp);
+                break;
+            case ')':
+                *this += p * m;
+                ch = '\n';
+                break;
+            case '\n':
+                str.clear();
+                *this += p * m;
+                break;
+            default:
+                state = ERR;
+            }
+            break;
+
         case ERR:
             int index = str.size() - 2;
-            do {
-                is.get(ch);
-                str += ch;
-            } while(ch != '\n');
+            if (ch != '\n')
+                do {
+                    is.get(ch);
+                    str += ch;
+                } while(ch != '\n');
 
             for (int i = 0; i < index; i++)
                 str += ' ';

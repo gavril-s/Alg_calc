@@ -110,7 +110,7 @@ std::pair<var<monomial>, std::vector<double>> solve(std::string str)
                 found_var = true;
                 VAR = i.vars[0];
             }
-            else if (found_var)
+            else if (found_var && VAR != i.vars[0])
                 throw(std::string{"error: more than one variable"});
         }
     }

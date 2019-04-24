@@ -36,6 +36,9 @@ int main()
             string str;
             get_str(str);
 
+	    if (str.length() == 0)
+		continue;
+
             bool equation = false;
             for (char ch : str)
                 if (ch == '=')
